@@ -34,6 +34,33 @@ namespace diskann {
     unsigned n_hops = 0;        // # search hops
   };
 
+  // Per-block access info for instrumentation
+  struct BlockAccessInfo {
+    unsigned block_id = 0;
+    unsigned total_nodes_in_block = 0;
+    unsigned visited_nodes_in_block = 0;
+    unsigned wasted_nodes_in_block = 0;
+  };
+
+  // Per-query instrumentation data
+  struct QueryInstrumentation {
+    std::vector<unsigned> visited_node_ids;    // nodes actually expanded
+    std::vector<unsigned> loaded_node_ids;     // all nodes loaded from disk
+    std::vector<unsigned> accessed_block_ids;  // block/sector IDs read
+    // For each visited node: its neighbor list from the graph
+    std::vector<std::pair<unsigned, std::vector<unsigned>>> node_neighbors;
+    // For each visited node: co-located nodes in same block
+    std::vector<std::pair<unsigned, std::vector<unsigned>>> node_colocated;
+
+    void clear() {
+      visited_node_ids.clear();
+      loaded_node_ids.clear();
+      accessed_block_ids.clear();
+      node_neighbors.clear();
+      node_colocated.clear();
+    }
+  };
+
   template<typename T>
   inline T get_percentile_stats(
       QueryStats *stats, uint64_t len, float percentile,
@@ -46,7 +73,7 @@ namespace diskann {
     std::sort(vals.begin(), vals.end(),
               [](const T &left, const T &right) { return left < right; });
 
-    auto retval = vals[(uint64_t)(percentile * len)];
+    auto retval = vals[(uint64_t) (percentile * len)];
     vals.clear();
     return retval;
   }
@@ -62,21 +89,23 @@ namespace diskann {
     return avg / len;
   }
 
-  // The following two functions are used when getting statistics while range searching on only queries with
-  // non-zero gt lengths
+  // The following two functions are used when getting statistics while range
+  // searching on only queries with non-zero gt lengths
   template<typename T>
   inline T get_percentile_stats_gt(
       QueryStats *stats, uint64_t len, float percentile,
-      const std::function<T(const QueryStats &)> &member_fn, std::vector<std::vector<uint32_t>> &gt) {
+      const std::function<T(const QueryStats &)> &member_fn,
+      std::vector<std::vector<uint32_t>>         &gt) {
     std::vector<T> vals;
     for (uint64_t i = 0; i < len; i++) {
-      if (gt[i].size()) vals.push_back(member_fn(stats[i]));
+      if (gt[i].size())
+        vals.push_back(member_fn(stats[i]));
     }
 
     std::sort(vals.begin(), vals.end(),
               [](const T &left, const T &right) { return left < right; });
 
-    auto retval = vals[(uint64_t)(percentile * vals.size())];
+    auto retval = vals[(uint64_t) (percentile * vals.size())];
     vals.clear();
     return retval;
   }
@@ -84,9 +113,10 @@ namespace diskann {
   template<typename T>
   inline double get_mean_stats_gt(
       QueryStats *stats, uint64_t len,
-      const std::function<T(const QueryStats &)> &member_fn, std::vector<std::vector<uint32_t>> &gt) {
+      const std::function<T(const QueryStats &)> &member_fn,
+      std::vector<std::vector<uint32_t>>         &gt) {
     uint32_t cnt = 0;
-    double avg = 0;
+    double   avg = 0;
     for (uint64_t i = 0; i < len; i++) {
       if (gt[i].size()) {
         ++cnt;

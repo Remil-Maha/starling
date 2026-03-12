@@ -31,7 +31,7 @@
 namespace diskann {
   template<typename T>
   struct QueryScratch {
-    T *  coord_scratch = nullptr;  // MUST BE AT LEAST [MAX_N_CMPS * data_dim]
+    T   *coord_scratch = nullptr;  // MUST BE AT LEAST [MAX_N_CMPS * data_dim]
     _u64 coord_idx = 0;            // index of next [data_dim] scratch to use
 
     char *sector_scratch =
@@ -44,10 +44,10 @@ namespace diskann {
         nullptr;  // MUST BE AT LEAST diskann MAX_DEGREE
     _u8 *aligned_pq_coord_scratch =
         nullptr;  // MUST BE AT LEAST  [N_CHUNKS * MAX_DEGREE]
-    T *    aligned_query_T = nullptr;
+    T     *aligned_query_T = nullptr;
     float *aligned_query_float = nullptr;
 
-    tsl::robin_set<_u64> *visited = nullptr;
+    tsl::robin_set<_u64>     *visited = nullptr;
     tsl::robin_set<unsigned> *page_visited = nullptr;
 
     void reset() {
@@ -63,15 +63,15 @@ namespace diskann {
     QueryScratch<T> scratch;
     IOContext       ctx;
   };
-  
+
   template<typename T>
   struct PageSearchPersistData {
     std::vector<Neighbor> ret_set;
-    NeighborVec kicked;
+    NeighborVec           kicked;
     std::vector<Neighbor> full_ret_set;
-    unsigned cur_list_size;
-    ThreadData<T> thread_data;
-    float query_norm;
+    unsigned              cur_list_size;
+    ThreadData<T>         thread_data;
+    float                 query_norm;
   };
 
   template<typename T>
@@ -79,26 +79,28 @@ namespace diskann {
    public:
     DISKANN_DLLEXPORT PQFlashIndex(
         std::shared_ptr<AlignedFileReader> &fileReader,
-        const bool use_page_search,
-        diskann::Metric                     metric = diskann::Metric::L2, bool use_sq = false);
+        const bool                          use_page_search,
+        diskann::Metric metric = diskann::Metric::L2, bool use_sq = false);
     DISKANN_DLLEXPORT ~PQFlashIndex();
 
     // load id to page id and graph partition layout
     DISKANN_DLLEXPORT void load_partition_data(const std::string &index_prefix,
-        const _u64 nnodes_per_sector = 0, const _u64 num_points = 0);
+                                               const _u64 nnodes_per_sector = 0,
+                                               const _u64 num_points = 0);
 
 #ifdef EXEC_ENV_OLS
     DISKANN_DLLEXPORT int load(diskann::MemoryMappedFiles &files,
                                uint32_t num_threads, const char *index_prefix);
 #else
     // load compressed data, and obtains the handle to the disk-resident index
-    DISKANN_DLLEXPORT int  load(uint32_t num_threads, const char *index_prefix,
-        const std::string& disk_index_path);
+    DISKANN_DLLEXPORT int load(uint32_t num_threads, const char *index_prefix,
+                               const std::string &disk_index_path);
 #endif
 
     DISKANN_DLLEXPORT void load_mem_index(Metric metric, const size_t query_dim,
-        const std::string &mem_index_path, const _u32 num_threads,
-        const _u32 mem_L);
+                                          const std::string &mem_index_path,
+                                          const _u32         num_threads,
+                                          const _u32         mem_L);
 
     DISKANN_DLLEXPORT void load_cache_list(std::vector<uint32_t> &node_list);
 
@@ -111,7 +113,8 @@ namespace diskann {
     DISKANN_DLLEXPORT void generate_cache_list_from_sample_queries(
         std::string sample_bin, _u64 l_search, _u64 beamwidth,
         _u64 num_nodes_to_cache, uint32_t num_threads,
-        std::vector<uint32_t> &node_list, bool use_pagesearch, const _u32 mem_L);
+        std::vector<uint32_t> &node_list, bool use_pagesearch,
+        const _u32 mem_L);
 #endif
 
     DISKANN_DLLEXPORT void cache_bfs_levels(_u64 num_nodes_to_cache,
@@ -120,66 +123,81 @@ namespace diskann {
     DISKANN_DLLEXPORT void cached_beam_search(
         const T *query, const _u64 k_search, const _u64 l_search, _u64 *res_ids,
         float *res_dists, const _u64 beam_width,
-        const bool use_reorder_data = false, QueryStats *stats = nullptr, const _u32 mem_L = 0);
+        const bool use_reorder_data = false, QueryStats *stats = nullptr,
+        const _u32 mem_L = 0);
 
     DISKANN_DLLEXPORT void cached_beam_search(
         const T *query, const _u64 k_search, const _u64 l_search, _u64 *res_ids,
         float *res_dists, const _u64 beam_width, const _u32 io_limit,
-        const bool use_reorder_data = false, QueryStats *stats = nullptr, const _u32 mem_L = 0);
+        const bool use_reorder_data = false, QueryStats *stats = nullptr,
+        const _u32 mem_L = 0, QueryInstrumentation *instr = nullptr);
 
     DISKANN_DLLEXPORT void generate_node_nbrs_freq(
-        const std::string& freq_save_path,
-        const size_t query_num,
-        const T *query, const size_t query_aligned_dim,
-        const _u64 k_search, const _u64 l_search, _u64 *res_ids,
-        float *res_dists, const _u64 beam_width, const _u32 io_limit,
-        const bool use_reorder_data = false, QueryStats *stats = nullptr, const _u32 mem_L = 0);
+        const std::string &freq_save_path, const size_t query_num,
+        const T *query, const size_t query_aligned_dim, const _u64 k_search,
+        const _u64 l_search, _u64 *res_ids, float *res_dists,
+        const _u64 beam_width, const _u32 io_limit,
+        const bool use_reorder_data = false, QueryStats *stats = nullptr,
+        const _u32 mem_L = 0);
 
     DISKANN_DLLEXPORT void page_search(
-        const T *query, const _u64 k_search, const _u32 mem_L, const _u64 l_search, _u64 *res_ids,
-        float *res_dists, const _u64 beam_width, const _u32 io_limit,
-        const bool use_reorder_data = false, const float use_ratio = 1.0f, QueryStats *stats = nullptr);
-    DISKANN_DLLEXPORT void page_search_sq(
-        const T *query, const _u64 k_search, const _u32 mem_L, const _u64 l_search, _u64 *res_ids,
-        float *res_dists, const _u64 beam_width, const _u32 io_limit,
-        const bool use_reorder_data = false, const float use_ratio = 1.0f, QueryStats *stats = nullptr);
+        const T *query, const _u64 k_search, const _u32 mem_L,
+        const _u64 l_search, _u64 *res_ids, float *res_dists,
+        const _u64 beam_width, const _u32 io_limit,
+        const bool use_reorder_data = false, const float use_ratio = 1.0f,
+        QueryStats *stats = nullptr, QueryInstrumentation *instr = nullptr);
+    DISKANN_DLLEXPORT void page_search_sq(const T *query, const _u64 k_search,
+                                          const _u32 mem_L, const _u64 l_search,
+                                          _u64 *res_ids, float *res_dists,
+                                          const _u64  beam_width,
+                                          const _u32  io_limit,
+                                          const bool  use_reorder_data = false,
+                                          const float use_ratio = 1.0f,
+                                          QueryStats *stats = nullptr);
 
-    DISKANN_DLLEXPORT _u32 range_search_iter_knn(const T *query1, const double range,
-                                        const _u32          mem_L,
-                                        const _u64          min_l_search,
-                                        const _u64          max_l_search,
-                                        std::vector<_u64> & indices,
-                                        std::vector<float> &distances,
-                                        const _u64          min_beam_width,
-                                        const float         page_search_use_ratio = 1.0f,
-                                        QueryStats *        stats = nullptr);
+    // Accessor for layout data needed by external instrumentation
+    _u64 get_nnodes_per_sector() const {
+      return nnodes_per_sector;
+    }
+    _u64 get_max_node_len() const {
+      return max_node_len;
+    }
+    _u64 get_num_points() const {
+      return num_points;
+    }
+    bool is_page_search() const {
+      return use_page_search_;
+    }
+    const std::vector<unsigned> &get_id2page() const {
+      return id2page_;
+    }
+    const std::vector<std::vector<unsigned>> &get_gp_layout() const {
+      return gp_layout_;
+    }
 
-    DISKANN_DLLEXPORT _u32 custom_range_search(const T *query1,
-                                        const double range,
-                                        const _u32          mem_L,
-                                        const _u64          knn_min_l_search,
-                                        const _u64          max_l_search,
-                                        std::vector<_u64> & indices,
-                                        std::vector<float> &distances,
-                                        const _u32          beam_width,
-                                        const float         page_search_use_ratio,
-                                        const _u32          kicked_size,
-                                        const _u32          custom_round_num,
-                                        QueryStats *        stats = nullptr);
+    DISKANN_DLLEXPORT _u32 range_search_iter_knn(
+        const T *query1, const double range, const _u32 mem_L,
+        const _u64 min_l_search, const _u64 max_l_search,
+        std::vector<_u64> &indices, std::vector<float> &distances,
+        const _u64 min_beam_width, const float page_search_use_ratio = 1.0f,
+        QueryStats *stats = nullptr);
+
+    DISKANN_DLLEXPORT _u32 custom_range_search(
+        const T *query1, const double range, const _u32 mem_L,
+        const _u64 knn_min_l_search, const _u64 max_l_search,
+        std::vector<_u64> &indices, std::vector<float> &distances,
+        const _u32 beam_width, const float page_search_use_ratio,
+        const _u32 kicked_size, const _u32 custom_round_num,
+        QueryStats *stats = nullptr);
 
     DISKANN_DLLEXPORT _u32 custom_range_search_iter_page_search(
-                                     const T *query1, const double range,
-                                     const _u32          mem_L,
-                                     std::vector<unsigned> &upper_mem_tags,
-                                     std::vector<float> &upper_mem_dis,
-                                     const _u64          min_l_search,
-                                     const _u64          max_l_search,
-                                     std::vector<_u64> & indices,
-                                     std::vector<float> &distances,
-                                     const _u64          min_beam_width,
-                                     const float         page_search_use_ratio,
-                                     const _u32          kicked_size,
-                                     QueryStats *        stats = nullptr);
+        const T *query1, const double range, const _u32 mem_L,
+        std::vector<unsigned> &upper_mem_tags,
+        std::vector<float> &upper_mem_dis, const _u64 min_l_search,
+        const _u64 max_l_search, std::vector<_u64> &indices,
+        std::vector<float> &distances, const _u64 min_beam_width,
+        const float page_search_use_ratio, const _u32 kicked_size,
+        QueryStats *stats = nullptr);
 
     std::shared_ptr<AlignedFileReader> &reader;
 
@@ -224,7 +242,7 @@ namespace diskann {
     // data: _u8 * n_chunks
     // chunk_size = chunk size of each dimension chunk
     // pq_tables = float* [[2^8 * [chunk_size]] * n_chunks]
-    _u8 *             data = nullptr;
+    _u8              *data = nullptr;
     _u64              n_chunks;
     FixedChunkPQTable pq_table;
 
@@ -250,11 +268,11 @@ namespace diskann {
     float *centroid_data = nullptr;
 
     // nhood_cache
-    unsigned *                                    nhood_cache_buf = nullptr;
+    unsigned                                     *nhood_cache_buf = nullptr;
     tsl::robin_map<_u32, std::pair<_u32, _u32 *>> nhood_cache;
 
     // coord_cache
-    T *                       coord_cache_buf = nullptr;
+    T                        *coord_cache_buf = nullptr;
     tsl::robin_map<_u32, T *> coord_cache;
 
     // thread-specific scratch
@@ -268,38 +286,42 @@ namespace diskann {
 
     // in-memory navigation graph
     std::unique_ptr<Index<T, uint32_t>> mem_index_;
-    std::vector<unsigned> memid2diskid_;
+    std::vector<unsigned>               memid2diskid_;
 
     // page search
-    bool use_page_search_ = true;
-    std::vector<unsigned> id2page_;
+    bool                               use_page_search_ = true;
+    std::vector<unsigned>              id2page_;
     std::vector<std::vector<unsigned>> gp_layout_;
 
-    bool use_sq_ = false;
-    float* mins = nullptr;
-    float* frac = nullptr;
+    bool   use_sq_ = false;
+    float *mins = nullptr;
+    float *frac = nullptr;
     // tsl::robin_map<_u32, char*> page_cache_;
     // tsl::robin_map<_u32, char*> node_cache_;
 
     // count the visit frequency of the neighbors
-    // the length of the vector is equal to the total number of vectors in the base
-    // idx = node_id, the key represents the neighbor id, value is its count
+    // the length of the vector is equal to the total number of vectors in the
+    // base idx = node_id, the key represents the neighbor id, value is its
+    // count
     std::vector<std::unordered_map<_u32, _u32>> nbrs_freq_counter_;
 
     void init_node_visit_counter();
 
-    void page_search_interim(
-      const _u64 k_search, const _u32 mem_L, const _u64 l_search, _u64 *indices,
-      float *distances, const _u64 beam_width, const _u32 io_limit,
-      const bool use_reorder_data = false, const float use_ratio = 1.0f, QueryStats *stats = nullptr,
-      PageSearchPersistData<T>* persist_data = nullptr);
+    void page_search_interim(const _u64 k_search, const _u32 mem_L,
+                             const _u64 l_search, _u64 *indices,
+                             float *distances, const _u64 beam_width,
+                             const _u32                io_limit,
+                             const bool                use_reorder_data = false,
+                             const float               use_ratio = 1.0f,
+                             QueryStats               *stats = nullptr,
+                             PageSearchPersistData<T> *persist_data = nullptr);
 
 #ifdef EXEC_ENV_OLS
     // Set to a larger value than the actual header to accommodate
     // any additions we make to the header. This is an outer limit
     // on how big the header can be.
     static const int HEADER_SIZE = SECTOR_LEN;
-    char *           getHeaderBytes();
+    char            *getHeaderBytes();
 #endif
   };
 }  // namespace diskann
